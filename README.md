@@ -70,7 +70,7 @@ norai/
 ## 🔑 API Key
 Already configured in `app.py`:
 ```python
-GEMINI_API_KEY = "AIzaSyA1E0I6VZZ0AdlHsRYRSAgBaunBMAE-tAU"
+GEMINI_API_KEY = "YOUR_API_KEY"
 ```
 
 ---
