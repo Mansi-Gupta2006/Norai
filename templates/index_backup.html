@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NORAI — AI Companion</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c:#00f0ff;--c2:#00a8b5;--c3:rgba(0,240,255,0.08);
+  --m:#ff2d78;--g:#00ff9d;--gold:#ffc845;
+  --bg:#020810;--bg2:#040f1e;--bg3:#061525;
+  --txt:#a8d8ea;--txt2:#3a6a80;--border:rgba(0,240,255,0.12);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Rajdhani',sans-serif;color:var(--txt);cursor:none}
+
+/* CURSOR */
+#cur{position:fixed;width:12px;height:12px;border:1px solid var(--c);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s;mix-blend-mode:screen}
+#cur-t{position:fixed;width:40px;height:40px;border:1px solid rgba(0,240,255,0.2);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:left .08s,top .08s}
+
+/* BG */
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,240,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.025) 1px,transparent 1px);background-size:50px 50px}
+.grid-bg::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 50%,transparent 40%,var(--bg) 100%)}
+.scanline{position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(transparent,transparent 3px,rgba(0,0,0,0.05) 3px,rgba(0,0,0,0.05) 4px)}
+.corner{position:fixed;width:24px;height:24px;z-index:10;pointer-events:none}
+.corner::before,.corner::after{content:'';position:absolute;background:var(--c)}
+.corner::before{width:100%;height:1px;top:0;left:0}.corner::after{width:1px;height:100%;top:0;left:0}
+.corner.tl{top:12px;left:12px}.corner.tr{top:12px;right:12px;transform:scaleX(-1)}.corner.bl{bottom:12px;left:12px;transform:scaleY(-1)}.corner.br{bottom:12px;right:12px;transform:scale(-1)}
+
+/* PAGES */
+.page{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .45s ease;overflow:hidden}
+.page.active{opacity:1;pointer-events:all}
+
+/* NAV */
+#nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:linear-gradient(to bottom,rgba(2,8,16,0.97),transparent)}
+.nav-logo{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--c);text-shadow:0 0 20px var(--c);letter-spacing:4px;cursor:pointer}
+.nav-links{display:flex;gap:4px;align-items:center}
+.nav-btn{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:7px 14px;border:1px solid transparent;color:var(--txt2);background:none;cursor:pointer;text-transform:uppercase;transition:all .25s;position:relative}
+.nav-btn::after{content:'';position:absolute;bottom:0;left:50%;width:0;height:1px;background:var(--c);transition:all .25s;transform:translateX(-50%)}
+.nav-btn:hover,.nav-btn.active{color:var(--c);border-color:var(--border);background:var(--c3)}
+.nav-btn:hover::after,.nav-btn.active::after{width:80%}
+.mode-badge{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:4px 10px;border:1px solid rgba(0,240,255,0.3);color:var(--c);background:var(--c3);text-transform:uppercase}
+
+/* VOICE PAGE */
+#page-voice{background:radial-gradient(ellipse 100% 80% at 50% 60%,#001a2e 0%,var(--bg) 70%)}
+.orb-wrap{position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:28px}
+.orb-ring{position:absolute;border-radius:50%;border:1px solid transparent}
+.r1{width:340px;height:340px;border-color:rgba(0,240,255,0.06);animation:spin 30s linear infinite}
+.r2{width:290px;height:290px;border-color:rgba(0,240,255,0.1);border-style:dashed;animation:spin 20s linear infinite reverse}
+.r3{width:240px;height:240px;border-color:rgba(0,240,255,0.18);animation:spin 15s linear infinite}
+.r3::before{content:'';position:absolute;inset:-2px;border-radius:50%;background:repeating-conic-gradient(rgba(0,240,255,0.4) 0deg 1deg,transparent 1deg 30deg);-webkit-mask:radial-gradient(circle,transparent 110px,black 112px);mask:radial-gradient(circle,transparent 110px,black 112px)}
+.orb{width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 38% 38%,#0af0ff22 0%,#003344 40%,#001a22 75%);border:1px solid rgba(0,240,255,0.35);box-shadow:0 0 40px rgba(0,240,255,0.4),0 0 80px rgba(0,240,255,0.15),inset 0 0 40px rgba(0,240,255,0.08);display:flex;align-items:center;justify-content:center;animation:breathe 4s ease-in-out infinite;cursor:pointer;transition:border-color .4s,box-shadow .4s}
+.orb.listening{animation:pulse-listen .8s ease-in-out infinite;box-shadow:0 0 60px rgba(0,240,255,0.8),0 0 120px rgba(0,240,255,0.4);border-color:rgba(0,240,255,0.7)}
+.orb.speaking{animation:pulse-speak .5s ease-in-out infinite;box-shadow:0 0 60px rgba(0,255,157,0.7),0 0 120px rgba(0,255,157,0.3);border-color:rgba(0,255,157,0.5)}
+.orb.thinking{box-shadow:0 0 40px rgba(255,200,69,0.5),0 0 80px rgba(255,200,69,0.2);border-color:rgba(255,200,69,0.4);animation:breathe 1.2s ease-in-out infinite}
+.orb-letter{font-family:'Orbitron',monospace;font-size:56px;font-weight:900;color:var(--c);text-shadow:0 0 30px var(--c);line-height:1}
+.orb-status{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:4px;color:var(--c);text-transform:uppercase;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:blink 1.5s ease-in-out infinite}
+
+/* WAVEFORM */
+.waveform{display:flex;align-items:center;gap:3px;height:44px;margin-bottom:16px}
+.wb{width:3px;background:var(--c);border-radius:2px;opacity:.25;transition:height .07s,opacity .1s}
+
+/* TRANSCRIPT */
+.t-box{width:100%;max-width:560px;min-height:48px;margin-bottom:16px;padding:11px 16px;border:1px solid var(--border);background:rgba(0,240,255,0.03);display:flex;flex-direction:column;gap:4px;max-height:88px;overflow:hidden}
+.t-user{color:var(--txt2);font-size:12px;font-style:italic}
+.t-norai{color:var(--txt);font-size:14px;line-height:1.5}
+.t-norai.typing::after{content:'▋';animation:blink .7s infinite;color:var(--c)}
+
+.v-title{font-family:'Orbitron',monospace;font-size:clamp(26px,5vw,50px);font-weight:900;background:linear-gradient(180deg,#fff 0%,var(--c) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:8px;margin-bottom:4px}
+.v-sub{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:6px;color:var(--txt2);text-transform:uppercase;margin-bottom:20px}
+
+/* PILLS */
+.pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:620px}
+.pill{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:7px 13px;border:1px solid var(--border);background:var(--c3);color:var(--txt2);cursor:pointer;transition:all .2s;text-transform:uppercase;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%)}
+.pill:hover{color:var(--c);border-color:rgba(0,240,255,0.3);background:rgba(0,240,255,0.12)}
+.pill:active{transform:scale(.97)}
+
+/* MODES PAGE */
+.modes-page{padding:78px 32px 36px;width:100%;max-width:1080px;overflow-y:auto;max-height:100vh}
+.ph{margin-bottom:28px}.pt{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:5px;color:var(--m);text-transform:uppercase;margin-bottom:8px}
+.ptt{font-family:'Orbitron',monospace;font-size:clamp(20px,3.5vw,36px);font-weight:700;color:#fff;line-height:1.1}.ptt span{color:var(--c)}
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.mc{background:var(--bg2);border:1px solid var(--border);padding:24px 20px;cursor:pointer;position:relative;overflow:hidden;transition:all .3s;display:flex;flex-direction:column;gap:10px}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity .3s}
+.mc:hover{border-color:rgba(0,240,255,0.3);background:var(--bg3);transform:translateY(-2px)}
+.mc:hover::before,.mc.sel::before{opacity:1}
+.mc.sel{border-color:rgba(0,240,255,0.4);background:rgba(0,240,255,0.04)}
+.mc[data-c="c"]::before{background:linear-gradient(90deg,transparent,var(--c),transparent)}
+.mc[data-c="m"]::before{background:linear-gradient(90deg,transparent,var(--m),transparent)}
+.mc[data-c="g"]::before{background:linear-gradient(90deg,transparent,var(--g),transparent)}
+.mc[data-c="gold"]::before{background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.mi{font-size:28px}.mn{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.mc[data-c="c"] .mn{color:var(--c)}.mc[data-c="m"] .mn{color:var(--m)}.mc[data-c="g"] .mn{color:var(--g)}.mc[data-c="gold"] .mn{color:var(--gold)}
+.md{font-size:12px;font-weight:300;color:var(--txt2);line-height:1.6}
+.mfs{display:flex;flex-direction:column;gap:3px}
+.mf{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--txt2);letter-spacing:1px;display:flex;align-items:center;gap:7px}
+.mf::before{content:'›'}
+.mc[data-c="c"] .mf::before{color:var(--c)}.mc[data-c="m"] .mf::before{color:var(--m)}.mc[data-c="g"] .mf::before{color:var(--g)}.mc[data-c="gold"] .mf::before{color:var(--gold)}
+.ma{margin-top:auto;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--txt2);text-transform:uppercase;display:flex;align-items:center;gap:6px;transition:color .2s}
+.mc:hover .ma{color:var(--c)}.mc[data-c="m"]:hover .ma{color:var(--m)}.mc[data-c="g"]:hover .ma{color:var(--g)}.mc[data-c="gold"]:hover .ma{color:var(--gold)}
+.arr{transition:transform .2s}.mc:hover .arr{transform:translateX(4px)}
+
+/* DOES PAGE */
+#page-does{justify-content:flex-start;overflow-y:auto}
+.does-inner{width:100%;max-width:1080px;padding:78px 32px 72px}
+.dh{text-align:center;margin-bottom:36px}
+.dhl{font-family:'Orbitron',monospace;font-size:clamp(24px,5vw,58px);font-weight:900;line-height:1;margin-bottom:10px}
+.dhl .l1{color:#fff;display:block}.dhl .l2{background:linear-gradient(90deg,var(--c),var(--m));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block}
+.ds{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:5px;color:var(--txt2);text-transform:uppercase}
+.dcats{display:flex;justify-content:center;gap:10px;margin-bottom:28px;flex-wrap:wrap}
+.cf{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:7px 16px;border:1px solid var(--border);background:none;color:var(--txt2);cursor:pointer;text-transform:uppercase;transition:all .2s}
+.cf.active,.cf:hover{background:var(--c3);border-color:rgba(0,240,255,0.3);color:var(--c)}
+.dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
+.dc{background:var(--bg2);border:1px solid var(--border);padding:18px 14px;position:relative;overflow:hidden;transition:all .25s;cursor:pointer}
+.dc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;opacity:0;transition:opacity .3s}
+.dc:hover{background:var(--bg3);border-color:rgba(0,240,255,0.2);transform:translateY(-1px)}.dc:hover::after{opacity:1}
+.dc:active{transform:scale(.98)}
+.dc.com::after{background:linear-gradient(90deg,transparent,var(--c),transparent)}.dc.ctrl::after{background:linear-gradient(90deg,transparent,var(--gold),transparent)}.dc.lrn::after{background:linear-gradient(90deg,transparent,var(--g),transparent)}.dc.feel::after{background:linear-gradient(90deg,transparent,var(--m),transparent)}
+.di{font-size:22px;margin-bottom:8px;display:block}.dt{font-family:'Orbitron',monospace;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.dc.com .dt{color:var(--c)}.dc.ctrl .dt{color:var(--gold)}.dc.lrn .dt{color:var(--g)}.dc.feel .dt{color:var(--m)}
+.dd{font-size:11px;font-weight:300;color:var(--txt2);line-height:1.5}
+
+/* STATUS BAR */
+#sb{position:fixed;bottom:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:7px 28px;background:linear-gradient(to top,rgba(2,8,16,0.97),transparent);font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--txt2);text-transform:uppercase}
+.sbi{display:flex;align-items:center;gap:5px}
+.sdot2{width:5px;height:5px;border-radius:50%}
+.sdot2.g{background:var(--g);box-shadow:0 0 6px var(--g);animation:blink 2s infinite}.sdot2.c{background:var(--c);box-shadow:0 0 6px var(--c)}.sdot2.r{background:var(--m);box-shadow:0 0 6px var(--m)}
+
+/* TOAST */
+#toast{position:fixed;bottom:38px;left:50%;transform:translateX(-50%) translateY(80px);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:10px 22px;background:var(--bg3);border:1px solid var(--c);color:var(--c);z-index:500;transition:transform .3s;white-space:nowrap;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}#toast.err{border-color:var(--m);color:var(--m)}#toast.ok{border-color:var(--g);color:var(--g)}
+
+/* ALARM PANEL */
+#ap{position:fixed;top:58px;right:14px;z-index:150;width:260px;background:var(--bg2);border:1px solid var(--border);display:none;flex-direction:column}
+#ap.open{display:flex}
+.aph{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--c);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.al{display:flex;flex-direction:column;max-height:280px;overflow-y:auto}
+.ai{padding:9px 14px;border-bottom:1px solid rgba(0,240,255,0.04);display:flex;justify-content:space-between;align-items:center}
+.at{font-family:'Orbitron',monospace;font-size:13px;color:var(--g)}.albl{font-size:10px;color:var(--txt2);margin-top:2px}
+.adel{background:none;border:none;color:var(--m);cursor:pointer;font-size:13px;padding:2px 4px}
+.ae{padding:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--txt2);text-align:center}
+
+/* ALARM RING */
+#ar{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#ar.ring{display:flex}
+.rt{font-family:'Orbitron',monospace;font-size:64px;font-weight:900;color:var(--g);text-shadow:0 0 40px var(--g);animation:pulse-speak .5s ease-in-out infinite}
+.rl{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:4px;color:var(--txt)}
+.rd{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;padding:11px 30px;border:1px solid var(--g);color:var(--g);background:none;cursor:pointer;text-transform:uppercase;transition:background .2s}
+.rd:hover{background:rgba(0,255,157,0.1)}
+
+/* CAMERA */
+#cam{position:fixed;inset:0;z-index:200;background:rgba(2,8,16,0.96);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+#cam.open{display:flex}
+#camv{width:480px;max-width:90vw;border:1px solid var(--c);box-shadow:0 0 30px rgba(0,240,255,0.3)}
+.cc{display:flex;gap:10px}
+.cb{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;padding:9px 20px;border:1px solid;cursor:pointer;text-transform:uppercase;transition:all .2s;background:none}
+.cb.cap{border-color:var(--c);color:var(--c)}.cb.cap:hover{background:var(--c3)}
+.cb.cls{border-color:var(--m);color:var(--m)}.cb.cls:hover{background:rgba(255,45,120,0.1)}
+.clbl{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--c);text-transform:uppercase}
+
+/* SPINNER */
+.spin-wrap{display:flex;align-items:center;gap:8px;color:var(--txt2);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px}
+.spinner{width:14px;height:14px;border:1px solid var(--c3);border-top-color:var(--c);border-radius:50%;animation:spin .8s linear infinite}
+
+/* ANIMATIONS */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+@keyframes pulse-listen{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes pulse-speak{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+.page.active .orb-wrap{animation:fadeUp .6s ease both}
+.page.active .t-box{animation:fadeUp .5s .07s ease both}
+.page.active .waveform{animation:fadeUp .5s .04s ease both}
+.page.active .v-title{animation:fadeUp .5s .1s ease both}
+.page.active .v-sub{animation:fadeUp .5s .13s ease both}
+.page.active .pills{animation:fadeUp .5s .16s ease both}
+
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--c2)}
+@media(max-width:860px){.mgrid{grid-template-columns:repeat(2,1fr)}.dgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.mgrid{grid-template-columns:1fr}.dgrid{grid-template-columns:1fr}.nav-btn{font-size:8px;padding:5px 8px}}
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="scanline"></div>
+<div class="corner tl"></div><div class="corner tr"></div>
+<div class="corner bl"></div><div class="corner br"></div>
+<div id="cur"></div><div id="cur-t"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-logo" onclick="go('voice')">NORAI</div>
+  <div class="nav-links">
+    <button class="nav-btn active" onclick="go('voice')" id="nb-voice">Voice</button>
+    <button class="nav-btn" onclick="go('modes')" id="nb-modes">Modes</button>
+    <button class="nav-btn" onclick="go('does')" id="nb-does">Norai Does</button>
+    <button class="nav-btn" onclick="toggleAP()">⏰ Alarms</button>
+    <span class="mode-badge" id="mb">General</span>
+  </div>
+</nav>
+
+<!-- ═══ VOICE PAGE ═══ -->
+<div class="page active" id="page-voice">
+  <div class="orb-wrap">
+    <div class="orb-ring r1"></div><div class="orb-ring r2"></div><div class="orb-ring r3"></div>
+    <div class="orb" id="orb" onclick="toggleListen()">
+      <span class="orb-letter">A</span>
+    </div>
+    <div class="orb-status"><div class="sdot"></div><span id="stxt">Tap to Speak</span></div>
+  </div>
+
+  <div class="waveform" id="wf">
+    <div class="wb" style="height:8px"></div><div class="wb" style="height:14px"></div>
+    <div class="wb" style="height:10px"></div><div class="wb" style="height:20px"></div>
+    <div class="wb" style="height:12px"></div><div class="wb" style="height:28px"></div>
+    <div class="wb" style="height:16px"></div><div class="wb" style="height:22px"></div>
+    <div class="wb" style="height:10px"></div><div class="wb" style="height:18px"></div>
+    <div class="wb" style="height:30px"></div><div class="wb" style="height:14px"></div>
+    <div class="wb" style="height:24px"></div><div class="wb" style="height:10px"></div>
+    <div class="wb" style="height:16px"></div><div class="wb" style="height:20px"></div>
+    <div class="wb" style="height:8px"></div><div class="wb" style="height:26px"></div>
+    <div class="wb" style="height:12px"></div><div class="wb" style="height:18px"></div>
+  </div>
+
+  <div class="t-box">
+    <div class="t-norai" id="atext">Hello! I'm Norai — your AI companion. Tap the orb to speak, or use a quick command below. I can chat, answer questions, set alarms, analyze your camera, and much more.</div>
+  </div>
+
+  <h1 class="v-title">NORAI</h1>
+  <p class="v-sub" id="vsub">Your AI Companion · Always Ready</p>
+
+  <div class="pills">
+    <div class="pill" onclick="qa('What can you do for me?')">What can you do?</div>
+    <div class="pill" onclick="qa('Tell me a fascinating fact about space or the universe')">Space facts</div>
+    <div class="pill" onclick="qa('Give me a powerful motivational message for today')">Motivate me</div>
+    <div class="pill" onclick="qa('Quiz me — ask me one interesting trivia question')">🧠 Quiz me</div>
+    <div class="pill" onclick="openCam()">📷 Vision Mode</div>
+    <div class="pill" onclick="qa('Set an alarm for 5 minutes from now. Label it: Focus Session')">⏰ 5-min alarm</div>
+    <div class="pill" onclick="qa('I am feeling stressed and overwhelmed. Please help me.')">💚 Support me</div>
+    <div class="pill" onclick="qa('Recommend music for focus — give me Spotify playlist names')">🎵 Music</div>
+    <div class="pill" onclick="qa('Translate: I love you, Good morning, Thank you — into Hindi and Spanish')">🌐 Translate</div>
+    <div class="pill" onclick="qa('Explain machine learning in simple terms')">Explain ML</div>
+  </div>
+</div>
+
+<!-- ═══ MODES PAGE ═══ -->
+<div class="page" id="page-modes">
+  <div class="modes-page">
+    <div class="ph">
+      <p class="pt">// Select Interface Mode</p>
+      <h2 class="ptt">How Would You Like<br><span>Norai to Serve You?</span></h2>
+    </div>
+    <div class="mgrid">
+
+      <div class="mc" data-c="c" data-mode="Work Assistant" onclick="activateMode(this)">
+        <div class="mi">💼</div><div class="mn">Work Assistant</div>
+        <div class="md">Your co-pilot for tasks, deadlines, emails, and professional work.</div>
+        <div class="mfs"><div class="mf">Email & message drafting</div><div class="mf">Meeting prep & scheduling</div><div class="mf">Task & project help</div><div class="mf">Professional strategy</div></div>
+        <div class="ma">Activate <span class="arr">→</span></div>
+      </div>
+
+      <div class="mc" data-c="g" data-mode="Vision Tutor" onclick="activateMode(this)">
+        <div class="mi">🎓</div><div class="mn">Vision Tutor</div>
+        <div class="md">A patient teacher for any subject — also sees your camera for homework help.</div>
+        <div class="mfs"><div class="mf">Any subject explained</div><div class="mf">Camera homework solver</div><div class="mf">Adaptive to your level</div><div class="mf">Quizzes & practice</div></div>
+        <div class="ma">Activate <span class="arr">→</span></div>
+      </div>
+
+      <div class="mc" data-c="m" data-mode="Companion" onclick="activateMode(this)">
+        <div class="mi">💚</div><div class="mn">Companion</div>
+        <div class="md">A warm, empathetic presence — for support, conversation, or just company.</div>
+        <div class="mfs"><div class="mf">Deep listening</div><div class="mf">Emotional intelligence</div><div class="mf">Non-judgmental always</div><div class="mf">Wellness & mindfulness</div></div>
+        <div class="ma">Activate <span class="arr">→</span></div>
+      </div>
+
+      <div class="mc" data-c="gold" data-mode="Home Controller" onclick="activateMode(this)">
+        <div class="mi">🏠</div><div class="mn">Home Controller</div>
+        <div class="md">Voice-control your smart home, routines, and household tasks.</div>
+        <div class="mfs"><div class="mf">Lights & climate control</div><div class="mf">Security & locks</div><div class="mf">Routines & timers</div><div class="mf">Home management</div></div>
+        <div class="ma">Activate <span class="arr">→</span></div>
+      </div>
+
+      <div class="mc" data-c="c" data-mode="Translator" onclick="activateMode(this)">
+        <div class="mi">🌐</div><div class="mn">Translator</div>
+        <div class="md">Live translation in 50+ languages with pronunciation and cultural notes.</div>
+        <div class="mfs"><div class="mf">50+ languages</div><div class="mf">Pronunciation guides</div><div class="mf">Cultural context</div><div class="mf">Language learning help</div></div>
+        <div class="ma">Activate <span class="arr">→</span></div>
+      </div>
+
+      <div class="mc" data-c="g" data-mode="Research Agent" onclick="activateMode(this)">
+        <div class="mi">🔭</div><div class="mn">Research Agent</div>
+        <div class="md">Deep, structured research and analysis on any topic you ask.</div>
+        <div class="mfs"><div class="mf">Deep topic analysis</div><div class="mf">Multiple perspectives</div><div class="mf">Structured insights</div><div class="mf">Science, business, history</div></div>
+        <div class="ma">Activate <span class="arr">→</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DOES PAGE ═══ -->
+<div class="page" id="page-does">
+  <div class="does-inner">
+    <div class="dh">
+      <h2 class="dhl"><span class="l1">Norai Does</span><span class="l2">Everything.</span></h2>
+      <p class="ds">One voice. Infinite actions. Tap any card to try it live.</p>
+    </div>
+    <div class="dcats">
+      <button class="cf active" onclick="fd('all',this)">All</button>
+      <button class="cf" onclick="fd('com',this)">Communicate</button>
+      <button class="cf" onclick="fd('ctrl',this)">Control</button>
+      <button class="cf" onclick="fd('lrn',this)">Learn</button>
+      <button class="cf" onclick="fd('feel',this)">Feel</button>
+    </div>
+    <div class="dgrid">
+      <div class="dc com" onclick="qad('Draft a friendly message saying I will be 10 minutes late')"><span class="di">📩</span><div class="dt">Send Messages</div><div class="dd">Draft any message — any tone, any platform.</div></div>
+      <div class="dc com" onclick="qad('Help me prepare a meeting agenda and talking points for a product review')"><span class="di">📅</span><div class="dt">Meeting Prep</div><div class="dd">Agendas, talking points, meeting strategy.</div></div>
+      <div class="dc com" onclick="qad('Write a professional email asking for a raise with compelling reasons')"><span class="di">📧</span><div class="dt">Draft Emails</div><div class="dd">Describe it — Norai writes it perfectly.</div></div>
+      <div class="dc com" onclick="qad('Translate: Hello, How are you, Thank you, Goodbye — into Hindi, French, and Japanese')"><span class="di">🌐</span><div class="dt">Live Translate</div><div class="dd">Real-time translation across 50+ languages.</div></div>
+      <div class="dc ctrl" onclick="qad('Recommend 5 Spotify playlists for deep focus work right now')"><span class="di">🎵</span><div class="dt">Music Help</div><div class="dd">Playlist recommendations by mood or vibe.</div></div>
+      <div class="dc ctrl" onclick="qad('Set an alarm for 10 minutes from now. Label it: Take a break')"><span class="di">⏰</span><div class="dt">Set Alarms</div><div class="dd">Real alarms with custom labels — working now.</div></div>
+      <div class="dc ctrl" onclick="qad('Give me smart home voice command examples for lights, thermostat, TV and security')"><span class="di">💡</span><div class="dt">Smart Home</div><div class="dd">Natural voice commands for full home control.</div></div>
+      <div class="dc ctrl" onclick="qad('Create a healthy weekly shopping list for one person on a budget')"><span class="di">🛒</span><div class="dt">Shopping List</div><div class="dd">Smart shopping lists, product suggestions.</div></div>
+      <div class="dc lrn" onclick="openCam()"><span class="di">📸</span><div class="dt">See & Explain</div><div class="dd">Point camera at anything — Norai analyzes live.</div></div>
+      <div class="dc lrn" onclick="qad('Give me a comprehensive overview of quantum computing — what, how, and why it matters')"><span class="di">🔭</span><div class="dt">Research Anything</div><div class="dd">Deep knowledge synthesis on any topic.</div></div>
+      <div class="dc lrn" onclick="qad('Explain how black holes form using a simple analogy')"><span class="di">🪐</span><div class="dt">Explain & Learn</div><div class="dd">Complex topics made simple and fascinating.</div></div>
+      <div class="dc lrn" onclick="qad('Ask me 3 trivia questions across science, history, and pop culture — quiz me!')"><span class="di">🧠</span><div class="dt">Quiz & Practice</div><div class="dd">Adaptive quizzes on any topic you choose.</div></div>
+      <div class="dc feel" onclick="qad('I want a deep conversation about the meaning of life and what makes it worthwhile')"><span class="di">💬</span><div class="dt">Deep Conversations</div><div class="dd">Philosophy, life, meaning — Norai goes deep.</div></div>
+      <div class="dc feel" onclick="qad('Guide me through a 2-minute calming breathing exercise step by step right now')"><span class="di">🧘</span><div class="dt">Breathing & Calm</div><div class="dd">Guided breathing exercises and mindfulness.</div></div>
+      <div class="dc feel" onclick="qad('Help me set one powerful personal goal for this week with a simple action plan')"><span class="di">🎯</span><div class="dt">Goal Coaching</div><div class="dd">Goals, habits, accountability — done with care.</div></div>
+      <div class="dc feel" onclick="qad('I need encouragement today. Say something genuinely caring and uplifting.')"><span class="di">💝</span><div class="dt">Care & Support</div><div class="dd">Genuine emotional support when you need it.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALARM PANEL -->
+<div id="ap">
+  <div class="aph"><span>Active Alarms</span><button style="background:none;border:none;color:var(--txt2);cursor:pointer" onclick="toggleAP()">✕</button></div>
+  <div class="al" id="alist"><div class="ae">No alarms set</div></div>
+</div>
+
+<!-- ALARM RING -->
+<div id="ar">
+  <div class="rt" id="art">00:00</div>
+  <div class="rl" id="arl">ALARM</div>
+  <button class="rd" onclick="dismissAlarm()">⏹ Dismiss</button>
+</div>
+
+<!-- CAMERA -->
+<div id="cam">
+  <span class="clbl">📡 Vision Mode — Norai Sees</span>
+  <video id="camv" autoplay playsinline muted></video>
+  <div class="cc">
+    <button class="cb cap" onclick="capture()">📷 Capture & Analyze</button>
+    <button class="cb cls" onclick="closeCam()">Close</button>
+  </div>
+  <canvas id="snap" style="display:none"></canvas>
+</div>
+
+<!-- STATUS BAR -->
+<div id="sb">
+  <div class="sbi"><div class="sdot2" id="cd"></div><span id="cl">Connecting...</span></div>
+  <div class="sbi"><div class="sdot2 c"></div><span id="ml">General Mode</span></div>
+  <div class="sbi" id="tl">Tokens: 0</div>
+  <div class="sbi" id="clk"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const SID = 'sess_' + Math.random().toString(36).slice(2);
+let mode = 'General';
+let isListening = false, isSpeaking = false;
+let recognition = null, camStream = null;
+let waveInt = null, alarmPollInt = null;
+let audioCtx = null, beepInt = null;
+let tokens = 0;
+
+// ═══════════════════════════════════════════
+// CURSOR
+// ═══════════════════════════════════════════
+const cur = document.getElementById('cur'), curT = document.getElementById('cur-t');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX+'px'; cur.style.top = e.clientY+'px';
+  setTimeout(() => { curT.style.left = e.clientX+'px'; curT.style.top = e.clientY+'px'; }, 80);
+});
+document.addEventListener('mousedown', () => { cur.style.width='6px'; cur.style.height='6px'; });
+document.addEventListener('mouseup', () => { cur.style.width='12px'; cur.style.height='12px'; });
+
+// ═══════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════
+function tick() {
+  document.getElementById('clk').textContent =
+    new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+setInterval(tick, 1000); tick();
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function go(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const nb = document.getElementById('nb-'+id);
+  if (nb) nb.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// API CALLS TO PYTHON BACKEND
+// ═══════════════════════════════════════════
+async function callBackend(message, imageB64=null) {
+  setOrb('thinking'); setSt('Thinking...');
+  showUser(message);
+
+  try {
+    const body = { message, mode, session_id: SID };
+    if (imageB64) body.image = imageB64;
+
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await r.json();
+    if (!data.success) throw new Error(data.error || 'Backend error');
+
+    tokens += data.tokens || 0;
+    document.getElementById('tl').textContent = 'Tokens: ' + tokens;
+
+    // Handle actions (alarms, etc)
+    if (data.actions && data.actions.length > 0) {
+      data.actions.forEach(a => handleAction(a));
+    }
+
+    return data.text;
+  } catch(e) {
+    setConnStatus(false, e.message);
+    return 'Connection error: ' + e.message + '. Make sure the Python server is running.';
+  }
+}
+
+async function callVision(imageB64) {
+  setOrb('thinking'); setSt('Analyzing image...');
+  try {
+    const r = await fetch('/api/vision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageB64, mode, session_id: SID })
+    });
+    const data = await r.json();
+    if (!data.success) throw new Error(data.error);
+    return data.text;
+  } catch(e) {
+    return 'Vision analysis failed: ' + e.message;
+  }
+}
+
+// ═══════════════════════════════════════════
+// ACTIONS (from backend)
+// ═══════════════════════════════════════════
+function handleAction(a) {
+  if (a.action === 'set_alarm') {
+    // Backend already created the alarm — just refresh panel
+    refreshAlarms();
+    toast('⏰ Alarm set: ' + (a.label || 'Alarm'), 'ok');
+  }
+  if (a.action === 'play_music') {
+    window.open('https://open.spotify.com/search/' + encodeURIComponent(a.query || 'music'), '_blank');
+    toast('🎵 Opening Spotify...', 'ok');
+  }
+  if (a.action === 'open_youtube') {
+    window.open('https://youtube.com/results?search_query=' + encodeURIComponent(a.query || 'music'), '_blank');
+    toast('▶️ Opening YouTube...', 'ok');
+  }
+}
+
+// ═══════════════════════════════════════════
+// DISPLAY
+// ═══════════════════════════════════════════
+function showUser(t) {
+  let u = document.querySelector('.t-user');
+  if (!u) { u = document.createElement('div'); u.className='t-user'; document.getElementById('atext').parentNode.prepend(u); }
+  u.textContent = '▸ ' + t;
+}
+
+function showNorai(text) {
+  const el = document.getElementById('atext');
+  el.textContent = ''; el.className = 't-norai typing';
+  let i = 0;
+  const iv = setInterval(() => {
+    if (i < text.length) { el.textContent += text[i++]; }
+    else { el.className = 't-norai'; clearInterval(iv); }
+  }, 16);
+}
+
+// ═══════════════════════════════════════════
+// TTS
+// ═══════════════════════════════════════════
+const synth = window.speechSynthesis;
+function speak(text) {
+  if (!synth || !text) return;
+  synth.cancel();
+  const clean = text.replace(/\{[^{}]*\}/g, '').replace(/[*_#`]/g, '').trim();
+  if (!clean) return;
+  const u = new SpeechSynthesisUtterance(clean);
+  u.rate = 1.05; u.pitch = 1.0; u.volume = 1.0;
+  const voices = synth.getVoices();
+  const v = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en')) ||
+            voices.find(v => v.lang === 'en-US') || voices.find(v => v.lang.startsWith('en'));
+  if (v) u.voice = v;
+  u.onstart = () => { isSpeaking = true; setOrb('speaking'); setSt('Speaking...'); };
+  u.onend = u.onerror = () => { isSpeaking = false; setOrb('idle'); setSt('Tap to Speak'); };
+  synth.speak(u);
+}
+
+// ═══════════════════════════════════════════
+// ORB
+// ═══════════════════════════════════════════
+function setOrb(s) {
+  const o = document.getElementById('orb');
+  o.classList.remove('listening','speaking','thinking');
+  if (s !== 'idle') o.classList.add(s);
+}
+function setSt(t) { document.getElementById('stxt').textContent = t; }
+
+// ═══════════════════════════════════════════
+// VOICE RECOGNITION
+// ═══════════════════════════════════════════
+function initRecog() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.continuous = false; r.interimResults = true; r.lang = 'en-US';
+  r.onstart = () => { isListening=true; setOrb('listening'); setSt('Listening...'); waveBars(true); };
+  r.onresult = (e) => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('atext').textContent = t;
+    if (e.results[e.results.length-1].isFinal) process(t);
+  };
+  r.onerror = (e) => {
+    isListening=false; waveBars(false); setOrb('idle'); setSt('Tap to Speak');
+    if (e.error === 'not-allowed') toast('Microphone permission denied', 'err');
+  };
+  r.onend = () => { isListening=false; waveBars(false); if (!isSpeaking) { setOrb('idle'); setSt('Tap to Speak'); } };
+  return r;
+}
+
+function toggleListen() {
+  if (isSpeaking) { synth && synth.cancel(); isSpeaking=false; setOrb('idle'); setSt('Tap to Speak'); return; }
+  if (isListening) { recognition && recognition.stop(); return; }
+  recognition = initRecog();
+  if (recognition) { try { recognition.start(); } catch(e) { toast('Mic error','err'); } }
+  else toast('Voice not supported — use quick pills','err');
+}
+
+async function process(text) {
+  if (!text.trim()) return;
+  waveBars(false);
+  const resp = await callBackend(text);
+  showNorai(resp); speak(resp);
+}
+
+// ═══════════════════════════════════════════
+// QUICK ASK
+// ═══════════════════════════════════════════
+async function qa(text) {
+  go('voice');
+  const resp = await callBackend(text);
+  showNorai(resp); speak(resp);
+}
+
+async function qad(text) {
+  go('voice');
+  const resp = await callBackend(text);
+  showNorai(resp); speak(resp);
+}
+
+// ═══════════════════════════════════════════
+// WAVEFORM
+// ═══════════════════════════════════════════
+function waveBars(on) {
+  const bars = document.querySelectorAll('.wb');
+  if (on) {
+    bars.forEach(b => b.style.opacity = '0.9');
+    waveInt = setInterval(() => bars.forEach(b => b.style.height = (8+Math.random()*28)+'px'), 100);
+  } else {
+    clearInterval(waveInt);
+    [8,14,10,20,12,28,16,22,10,18,30,14,24,10,16,20,8,26,12,18].forEach((h,i) => {
+      bars[i].style.height = h+'px'; bars[i].style.opacity = '0.25';
+    });
+  }
+}
+setInterval(() => {
+  if (!isListening && !isSpeaking) {
+    document.querySelectorAll('.wb').forEach(b => {
+      b.style.height = Math.max(6, Math.min(32, parseFloat(b.style.height)+(Math.random()-.5)*3))+'px';
+      b.style.opacity = (0.1+Math.random()*.12).toString();
+    });
+  }
+}, 400);
+
+// ═══════════════════════════════════════════
+// MODES
+// ═══════════════════════════════════════════
+function activateMode(card) {
+  document.querySelectorAll('.mc').forEach(c => c.classList.remove('sel'));
+  card.classList.add('sel');
+  mode = card.dataset.mode;
+
+  // Clear session history on backend
+  fetch('/api/session/clear', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({session_id: SID})
+  });
+
+  document.getElementById('mb').textContent = mode;
+  document.getElementById('ml').textContent = mode + ' Mode';
+  document.getElementById('vsub').textContent = mode + ' Mode · Active';
+  toast('✦ ' + mode + ' Activated', 'ok');
+  setTimeout(() => qa('I just switched to ' + mode + ' mode. Greet me briefly and tell me what you can help with.'), 700);
+}
+
+// ═══════════════════════════════════════════
+// ALARMS (backend-driven)
+// ═══════════════════════════════════════════
+function toggleAP() { document.getElementById('ap').classList.toggle('open'); refreshAlarms(); }
+
+async function refreshAlarms() {
+  const r = await fetch('/api/alarms?session_id=' + SID);
+  const data = await r.json();
+  const list = document.getElementById('alist');
+  if (!data.alarms.length) { list.innerHTML = '<div class="ae">No alarms set</div>'; return; }
+  list.innerHTML = data.alarms.map(a => `
+    <div class="ai">
+      <div><div class="at">${a.time_display}</div><div class="albl">${a.label}</div></div>
+      <button class="adel" onclick="delAlarm(${a.id})">✕</button>
+    </div>`).join('');
+}
+
+async function delAlarm(id) {
+  await fetch('/api/alarms/' + id + '?session_id=' + SID, {method:'DELETE'});
+  refreshAlarms();
+}
+
+// Poll backend every second for fired alarms
+alarmPollInt = setInterval(async () => {
+  try {
+    const r = await fetch('/api/alarms/check?session_id=' + SID);
+    const data = await r.json();
+    if (data.fired && data.fired.length > 0) {
+      data.fired.forEach(a => ringAlarm(a));
+      refreshAlarms();
+    }
+  } catch(e) {}
+}, 1000);
+
+function ringAlarm(a) {
+  document.getElementById('art').textContent = a.time_display;
+  document.getElementById('arl').textContent = a.label.toUpperCase();
+  document.getElementById('ar').classList.add('ring');
+  startBeep(); speak('Alarm! ' + a.label);
+}
+
+function dismissAlarm() {
+  document.getElementById('ar').classList.remove('ring');
+  stopBeep(); synth && synth.cancel();
+}
+
+function startBeep() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const g = audioCtx.createGain(); g.gain.value = 0.25; g.connect(audioCtx.destination);
+    beepInt = setInterval(() => {
+      const o = audioCtx.createOscillator(); o.type='sine'; o.frequency.value=880;
+      o.connect(g); o.start(); o.stop(audioCtx.currentTime+0.12);
+    }, 380);
+  } catch(e) {}
+}
+function stopBeep() {
+  if (beepInt) { clearInterval(beepInt); beepInt=null; }
+  if (audioCtx) { audioCtx.close(); audioCtx=null; }
+}
+
+// ═══════════════════════════════════════════
+// CAMERA / VISION
+// ═══════════════════════════════════════════
+async function openCam() {
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    document.getElementById('camv').srcObject = camStream;
+    document.getElementById('cam').classList.add('open');
+    toast('📷 Camera active!', 'ok');
+  } catch(e) { toast('Camera permission denied','err'); }
+}
+function closeCam() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream=null; }
+  document.getElementById('camv').srcObject = null;
+  document.getElementById('cam').classList.remove('open');
+}
+async function capture() {
+  const v = document.getElementById('camv'), c = document.getElementById('snap');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  const b64 = c.toDataURL('image/jpeg', 0.8).split(',')[1];
+  closeCam(); go('voice');
+  showUser('📷 [Camera capture sent to Norai]');
+  toast('🔭 Analyzing...', 'ok');
+  const resp = await callVision(b64);
+  showNorai(resp); speak(resp);
+}
+
+// ═══════════════════════════════════════════
+// FILTER (Does page)
+// ═══════════════════════════════════════════
+function fd(cat, btn) {
+  document.querySelectorAll('.cf').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+  document.querySelectorAll('.dc').forEach(c => {
+    c.style.display = (cat === 'all' || c.classList.contains(cat)) ? '' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+let toastT;
+function toast(msg, type='') {
+  const t = document.getElementById('toast'); t.textContent = msg;
+  t.className = 'show' + (type ? ' '+type : '');
+  clearTimeout(toastT); toastT = setTimeout(() => t.className = '', 2800);
+}
+
+// ═══════════════════════════════════════════
+// CONNECTION STATUS
+// ═══════════════════════════════════════════
+function setConnStatus(ok, msg='') {
+  document.getElementById('cd').className = 'sdot2 ' + (ok ? 'g' : 'r');
+  document.getElementById('cl').textContent = ok ? 'Gemini Connected' : (msg || 'Error');
+}
+
+// ═══════════════════════════════════════════
+// INIT — check backend health
+// ═══════════════════════════════════════════
+(async () => {
+  if (synth) { synth.getVoices(); synth.onvoiceschanged = () => synth.getVoices(); }
+  try {
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    setConnStatus(d.gemini);
+    if (!d.gemini) toast('Gemini API issue — check API key', 'err');
+    else toast('✦ Norai online', 'ok');
+  } catch(e) {
+    setConnStatus(false, 'Server offline');
+    toast('⚠ Python server not running!', 'err');
+  }
+})();
+</script>
+</body>
+</html>
